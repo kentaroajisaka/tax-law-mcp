@@ -74,13 +74,13 @@ npm run build
 
 ### リモート（Vercel）
 
-Vercelにデプロイ後:
+事務所チームメンバー向け。インストール不要:
 
 ```json
 {
   "mcpServers": {
     "tax-law": {
-      "url": "https://your-deployment.vercel.app/mcp"
+      "url": "https://tax-law-mcp.vercel.app/mcp"
     }
   }
 }
