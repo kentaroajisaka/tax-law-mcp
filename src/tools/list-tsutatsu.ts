@@ -10,7 +10,7 @@ export function registerListTsutatsuTool(server: McpServer) {
     '通達の目次（章・節・条の構造）を表示する。通達番号が分からない場合に使用。',
     {
       tsutatsu_name: z.string().describe(
-        '通達名または略称。例: "所得税基本通達", "所基通"'
+        '通達名または略称。例: "所得税基本通達", "所基通", "措通（譲渡）", "措通（法人税）", "通法基通"'
       ),
       section: z.string().optional().describe(
         'セクション絞り込み。例: "第33条", "譲渡所得", "収用"'
@@ -32,7 +32,7 @@ export function registerListTsutatsuTool(server: McpServer) {
         }
 
         const tocHtml = await fetchTsutatsuToc(entry.tocPath, entry.encoding);
-        const tocLinks = parseTocLinks(tocHtml);
+        const tocLinks = parseTocLinks(tocHtml, entry.tocFormat, entry.tocPath);
         const tocText = formatTocAsText(tocLinks, args.section);
         const tocUrl = getNtaUrl(entry.tocPath);
 

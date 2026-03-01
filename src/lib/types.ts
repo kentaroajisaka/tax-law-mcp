@@ -41,6 +41,8 @@ export interface TsutatsuRegistryEntry {
   encoding: 'shift_jis' | 'utf-8';
   /** 基本URL */
   baseUrl: string;
+  /** TOCのHTML形式ヒント。省略時は 'kihon' */
+  tocFormat?: 'kihon' | 'sochiho-li' | 'sochiho-p' | 'sochiho-article';
 }
 
 /** 通達の解析結果 */
@@ -61,8 +63,12 @@ export interface TsutatsuEntry {
 export interface TsutatsuTocLink {
   /** リンクテキスト */
   text: string;
-  /** ページURL（相対パス） */
+  /** ページURL（相対パス、フラグメントなし） */
   href: string;
+  /** フラグメント付きURL（#a-33-1 等） */
+  fullHref?: string;
   /** 対応する条文番号プレフィックス（推測） */
   articlePrefix?: string;
+  /** TOCから直接取得した通達番号（例: "33-1", "69の4-1"） */
+  tsutatsuNumber?: string;
 }

@@ -14,6 +14,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run build"
   },
   "license": "MIT",
@@ -21,14 +23,22 @@
     "type": "git",
     "url": "https://github.com/kentaroajisaka/tax-law-mcp"
   },
-  "keywords": ["mcp", "tax", "japan", "law", "e-gov", "claude"],
+  "keywords": [
+    "mcp",
+    "tax",
+    "japan",
+    "law",
+    "e-gov",
+    "claude"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0",
-    "tsx": "^4.21.0"
+    "vitest": "^4.0.18"
   }
 }
