@@ -5,7 +5,16 @@
   "functions": {
     "api/mcp.ts": {
       "maxDuration": 300
-    }
+    },
+    "api/search-saiketsu.ts": {
+      "maxDuration": 120
+    },
+    "api/get-law.ts": { "maxDuration": 30 },
+    "api/search-law.ts": { "maxDuration": 30 },
+    "api/get-tsutatsu.ts": { "maxDuration": 60 },
+    "api/list-tsutatsu.ts": { "maxDuration": 30 },
+    "api/list-saiketsu.ts": { "maxDuration": 30 },
+    "api/get-saiketsu.ts": { "maxDuration": 60 }
   },
   "rewrites": [
     {

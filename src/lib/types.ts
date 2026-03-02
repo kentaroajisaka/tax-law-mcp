@@ -5,10 +5,17 @@ export interface EgovLawSearchResult {
     law_id: string;
     law_type: string;
     law_num: string;
-    law_title: string;
     promulgation_date: string;
-    amendment_law_id?: string;
-    amendment_promulgation_date?: string;
+  };
+  revision_info?: {
+    law_title: string;
+    law_title_kana?: string;
+    abbrev?: string;
+  };
+  current_revision_info?: {
+    law_title: string;
+    law_title_kana?: string;
+    abbrev?: string;
   };
 }
 
@@ -71,4 +78,48 @@ export interface TsutatsuTocLink {
   articlePrefix?: string;
   /** TOCから直接取得した通達番号（例: "33-1", "69の4-1"） */
   tsutatsuNumber?: string;
+}
+
+/** 裁決事例（KFS）の型 */
+
+export interface KfsTaxType {
+  /** 税目名（例: "所得税法関係"） */
+  name: string;
+  /** 件数 */
+  caseCount: number;
+  /** トピックページパス（例: "/service/MP/02/index.html"） */
+  topicPath: string;
+}
+
+export interface KfsTopicCategory {
+  /** カテゴリ名 */
+  name: string;
+  /** サブカテゴリ（件数付き） */
+  items: { name: string; count: number; href: string }[];
+}
+
+export interface KfsCaseEntry {
+  /** 事例集番号 */
+  collectionNo: number;
+  /** 税目（例: "所得税法関係"） */
+  taxType: string;
+  /** カテゴリ（例: "（譲渡所得　取得費の意義、範囲）"） */
+  category: string;
+  /** 要旨テキスト */
+  summary: string;
+  /** 裁決日（例: "令和7年4月11日"） */
+  date: string;
+  /** 裁決事例ページURL */
+  caseUrl: string;
+  /** 要旨ページURL */
+  youshiUrl?: string;
+}
+
+export interface KfsCaseFullText {
+  /** 裁決全文テキスト */
+  body: string;
+  /** 裁決日 */
+  date: string;
+  /** ソースURL */
+  url: string;
 }

@@ -1,7 +1,7 @@
 {
   "name": "tax-law-mcp",
-  "version": "0.2.0",
-  "description": "MCP server for Japanese tax law — e-Gov API & NTA 通達 (administrative circulars)",
+  "version": "0.4.0",
+  "description": "MCP server & REST API for Japanese tax law — e-Gov API, NTA 通達, KFS 裁決事例",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -29,6 +29,8 @@
     "japan",
     "law",
     "e-gov",
+    "kfs",
+    "saiketsu",
     "claude"
   ],
   "dependencies": {
@@ -37,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@vercel/node": "^5.6.9",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "vitest": "^4.0.18"

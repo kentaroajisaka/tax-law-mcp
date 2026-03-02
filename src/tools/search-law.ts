@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { searchLaws, getEgovUrl } from '../lib/egov-client.js';
+import { searchLaw } from '../lib/services/law-service.js';
 
 export function registerSearchLawTool(server: McpServer) {
   server.tool(
@@ -19,10 +19,13 @@ export function registerSearchLawTool(server: McpServer) {
     },
     async (args) => {
       try {
-        const limit = Math.min(args.limit ?? 10, 20);
-        const results = await searchLaws(args.keyword, limit, args.law_type);
+        const result = await searchLaw({
+          keyword: args.keyword,
+          lawType: args.law_type,
+          limit: args.limit,
+        });
 
-        if (results.length === 0) {
+        if (result.results.length === 0) {
           return {
             content: [{
               type: 'text' as const,
@@ -31,11 +34,9 @@ export function registerSearchLawTool(server: McpServer) {
           };
         }
 
-        const lines = results.map((r, i) => {
-          const info = r.law_info;
-          const url = getEgovUrl(info.law_id);
-          return `${i + 1}. **${info.law_title}**\n   法令番号: ${info.law_num}\n   law_id: ${info.law_id}\n   種別: ${info.law_type}\n   URL: ${url}`;
-        });
+        const lines = result.results.map((r, i) =>
+          `${i + 1}. **${r.lawTitle}**\n   法令番号: ${r.lawNum}\n   law_id: ${r.lawId}\n   種別: ${r.lawType}\n   URL: ${r.egovUrl}`
+        );
 
         return {
           content: [{

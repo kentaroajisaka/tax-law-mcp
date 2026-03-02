@@ -1,0 +1,434 @@
+openapi: "3.1.0"
+info:
+  title: "日本税法API (Japanese Tax Law API)"
+  description: |
+    日本の税法（法令・通達・裁決事例）の原文を取得するAPI。
+    e-Gov法令API（デジタル庁）、国税庁ホームページ、国税不服審判所から正確な条文を取得する。
+
+    ## ハルシネーション防止のための使用ルール
+
+    AIがこのAPIを使用する際は、以下のルールに従うこと:
+    1. 条文の内容について回答する際は、先にAPIで原文を取得すること
+    2. 取得した原文を根拠として使い、自分の記憶だけで回答しないこと
+    3. 取得した条文が自分の知識と矛盾する場合、条文を正とすること
+    4. 回答には取得した条文を引用し、条文番号・出典URLを明記すること
+  version: "1.0.0"
+  contact:
+    name: "鯵坂税理士事務所"
+    url: "https://github.com/kentaroajisaka/tax-law-mcp"
+
+servers:
+  - url: "https://<your-vercel-domain>"
+    description: "Vercelデプロイ先（自身のURLに書き換えてください）"
+
+paths:
+  /api/get-law:
+    get:
+      operationId: getLaw
+      summary: "法令の条文を取得"
+      description: |
+        e-Gov法令API v2を使用して日本の法令から特定の条文を取得する。
+        略称にも対応（所法→所得税法、措法→租税特別措置法 等）。
+        取得した条文は、AIの知識の検証に必ず使用すること。
+      parameters:
+        - name: law_name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "法令名または略称。例: 所得税法, 措法, 所令"
+        - name: article
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "条文番号。例: 33, 33の2"
+        - name: paragraph
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "項番号"
+        - name: item
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "号番号"
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [markdown, toc]
+            default: markdown
+          description: "出力形式。markdown=条文全文, toc=目次のみ"
+      responses:
+        "200":
+          description: "条文取得成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TextResponse"
+        "400":
+          description: "パラメータ不正"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "条文が見つからない"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/search-law:
+    get:
+      operationId: searchLaw
+      summary: "法令をキーワード検索"
+      description: "法令名が分からない場合にキーワードで法令を横断検索する。"
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "検索キーワード。例: 贈与, インボイス, 収用"
+        - name: law_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [Act, CabinetOrder, MinisterialOrdinance]
+          description: "法令種別。Act=法律, CabinetOrder=政令, MinisterialOrdinance=省令"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            maximum: 20
+          description: "取得件数"
+      responses:
+        "200":
+          description: "検索成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchLawResponse"
+
+  /api/get-tsutatsu:
+    get:
+      operationId: getTsutatsu
+      summary: "通達を取得"
+      description: |
+        国税庁サイトから基本通達・措置法通達の原文を取得する。
+        略称対応（所基通→所得税基本通達 等）。
+        取得した通達は、AIの知識の検証に必ず使用すること。
+      parameters:
+        - name: tsutatsu_name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "通達名または略称。例: 所基通, 措通（譲渡）, 法基通"
+        - name: number
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "通達番号。例: 33-6, 2-1-1"
+      responses:
+        "200":
+          description: "通達取得成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TextResponse"
+        "400":
+          description: "パラメータ不正"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "通達が見つからない"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/list-tsutatsu:
+    get:
+      operationId: listTsutatsu
+      summary: "通達の目次を表示"
+      description: "通達番号が分からない場合に目次から探す。"
+      parameters:
+        - name: tsutatsu_name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "通達名または略称。例: 所基通"
+        - name: section
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "セクション絞り込み。例: 第33条, 譲渡所得"
+      responses:
+        "200":
+          description: "目次取得成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TextResponse"
+
+  /api/list-saiketsu:
+    get:
+      operationId: listSaiketsu
+      summary: "裁決事例の税目・カテゴリ一覧"
+      description: "国税不服審判所の公表裁決事例の税目一覧またはカテゴリ階層を表示する。"
+      parameters:
+        - name: tax_type
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "税目名または略称。例: 所得税, 法人税, 消費税。省略時は全税目一覧"
+      responses:
+        "200":
+          description: "取得成功"
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SaiketsuTaxTypesResponse"
+                  - $ref: "#/components/schemas/SaiketsuCategoriesResponse"
+
+  /api/search-saiketsu:
+    get:
+      operationId: searchSaiketsu
+      summary: "裁決事例をキーワード検索"
+      description: |
+        国税不服審判所の公表裁決事例をキーワードで検索する。
+        スペース区切りでAND検索。初回は事例集目次の取得に時間がかかる。
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "検索キーワード。スペース区切りでAND検索。例: 重加算税 隠蔽"
+        - name: tax_type
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "税目で絞り込み。例: 所得税, 法人税"
+        - name: latest
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "最新N冊のみ検索。高速に結果が欲しい場合に指定推奨"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            maximum: 30
+          description: "結果件数上限"
+      responses:
+        "200":
+          description: "検索成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchSaiketsuResponse"
+
+  /api/get-saiketsu:
+    get:
+      operationId: getSaiketsu
+      summary: "裁決事例の全文を取得"
+      description: "国税不服審判所の裁決事例の全文を取得する。URLまたは事例集番号+事例番号で指定。"
+      parameters:
+        - name: url
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "裁決事例のURL。例: https://www.kfs.go.jp/service/JP/139/01/index.html"
+        - name: collection_no
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "裁決事例集の番号。例: 139（case_noと併用）"
+        - name: case_no
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "事例番号。例: 1（collection_noと併用）"
+      responses:
+        "200":
+          description: "取得成功"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaiketsuFullTextResponse"
+        "400":
+          description: "パラメータ不正"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "裁決が見つからない"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    TextResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          description: "Markdown形式のテキスト"
+        source:
+          type: string
+          description: "出典名"
+        url:
+          type: string
+          description: "出典URL"
+
+    SearchLawResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              lawTitle:
+                type: string
+              lawId:
+                type: string
+              lawNum:
+                type: string
+              lawType:
+                type: string
+              egovUrl:
+                type: string
+        total:
+          type: integer
+        source:
+          type: string
+        url:
+          type: string
+
+    SaiketsuTaxTypesResponse:
+      type: object
+      properties:
+        tax_types:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              case_count:
+                type: integer
+        source:
+          type: string
+        url:
+          type: string
+
+    SaiketsuCategoriesResponse:
+      type: object
+      properties:
+        tax_type_name:
+          type: string
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    count:
+                      type: integer
+        source:
+          type: string
+        url:
+          type: string
+
+    SearchSaiketsuResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              collection_no:
+                type: integer
+              tax_type:
+                type: string
+              category:
+                type: string
+              summary:
+                type: string
+              date:
+                type: string
+              case_url:
+                type: string
+        total_hits:
+          type: integer
+        displayed:
+          type: integer
+        scope:
+          type: string
+        fetch_errors:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+
+    SaiketsuFullTextResponse:
+      type: object
+      properties:
+        date:
+          type: string
+        body:
+          type: string
+        source:
+          type: string
+        url:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR, NOT_FOUND, RATE_LIMITED, EXTERNAL_API_ERROR, INTERNAL_ERROR]
+            message:
+              type: string

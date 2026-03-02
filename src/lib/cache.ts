@@ -58,3 +58,9 @@ export const tsutatsuTocCache = new TTLCache<string>(24 * 60 * 60 * 1000);
 
 /** 通達ページキャッシュ: TTL 1時間 */
 export const tsutatsuPageCache = new TTLCache<string>(60 * 60 * 1000);
+
+/** KFSトピックページキャッシュ: TTL 24時間 */
+export const kfsTopicCache = new TTLCache<string>(24 * 60 * 60 * 1000);
+
+/** KFS個別ページキャッシュ: TTL 1時間 */
+export const kfsPageCache = new TTLCache<string>(60 * 60 * 1000);

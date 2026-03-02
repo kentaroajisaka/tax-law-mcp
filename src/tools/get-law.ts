@@ -1,7 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { fetchLawData, getEgovUrl } from '../lib/egov-client.js';
-import { extractArticle, extractToc } from '../lib/egov-parser.js';
+import { getLawArticle, getLawToc } from '../lib/services/law-service.js';
 
 export function registerGetLawTool(server: McpServer) {
   server.tool(
@@ -26,33 +25,22 @@ export function registerGetLawTool(server: McpServer) {
     },
     async (args) => {
       try {
-        const { data, lawId, lawTitle } = await fetchLawData(args.law_name);
-        const egovUrl = getEgovUrl(lawId);
-
         if (args.format === 'toc') {
-          const toc = extractToc(data);
+          const result = await getLawToc({ lawName: args.law_name });
           return {
             content: [{
               type: 'text' as const,
-              text: `# ${lawTitle} — 目次\n\n${toc}\n\n---\n出典：e-Gov法令検索（デジタル庁）\nURL: ${egovUrl}`,
+              text: `# ${result.lawTitle} — 目次\n\n${result.toc}\n\n---\n出典：e-Gov法令検索（デジタル庁）\nURL: ${result.egovUrl}`,
             }],
           };
         }
 
-        const result = extractArticle(data, args.article, args.paragraph, args.item);
-
-        if (!result) {
-          const articleDesc = `第${args.article}条`;
-          const paraDesc = args.paragraph ? `第${args.paragraph}項` : '';
-          const itemDesc = args.item ? `第${args.item}号` : '';
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `${lawTitle} ${articleDesc}${paraDesc}${itemDesc} が見つかりませんでした。\n\n条文番号を確認してください。"33の2" の場合は article: "33の2" と指定します。\n\nURL: ${egovUrl}`,
-            }],
-            isError: true,
-          };
-        }
+        const result = await getLawArticle({
+          lawName: args.law_name,
+          article: args.article,
+          paragraph: args.paragraph,
+          item: args.item,
+        });
 
         const articleDisplay = args.article.replace(/_/g, 'の');
         const paraDisplay = args.paragraph ? `第${args.paragraph}項` : '';
@@ -61,7 +49,7 @@ export function registerGetLawTool(server: McpServer) {
         return {
           content: [{
             type: 'text' as const,
-            text: `# ${lawTitle} 第${articleDisplay}条${paraDisplay}${itemDisplay}\n${result.articleCaption ? `（${result.articleCaption}）\n` : ''}\n${result.text}\n\n---\n出典：e-Gov法令検索（デジタル庁）\nURL: ${egovUrl}`,
+            text: `# ${result.lawTitle} 第${articleDisplay}条${paraDisplay}${itemDisplay}\n${result.articleCaption ? `（${result.articleCaption}）\n` : ''}\n${result.text}\n\n---\n出典：e-Gov法令検索（デジタル庁）\nURL: ${result.egovUrl}`,
           }],
         };
       } catch (error) {
