@@ -1,6 +1,6 @@
 {
   "name": "tax-law-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "MCP server & REST API for Japanese tax law — e-Gov API, NTA 通達, KFS 裁決事例",
   "type": "module",
   "main": "dist/index.js",

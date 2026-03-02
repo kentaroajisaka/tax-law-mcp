@@ -11,7 +11,7 @@ export function createServer(): McpServer {
   const server = new McpServer(
     {
       name: 'tax-law-mcp',
-      version: '0.4.0',
+      version: '0.4.1',
     },
     {
       instructions: `日本の税法（法令・通達・裁決事例）の原文を取得するMCPサーバーです。
