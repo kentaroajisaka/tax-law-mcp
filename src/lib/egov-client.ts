@@ -28,8 +28,10 @@ async function rateLimit(): Promise<void> {
 /**
  * 法令名を比較用に正規化する
  * 全角/半角、句読点、括弧、空白を取り除き、緩い包含比較に使う
+ * 入力が undefined/null/空文字の場合は空文字を返す(防御的)。
  */
-function normalizeLawTitle(s: string): string {
+function normalizeLawTitle(s: string | undefined | null): string {
+  if (!s) return '';
   return s
     // 全角英数→半角
     .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
@@ -44,15 +46,16 @@ function normalizeLawTitle(s: string): string {
  * その silent fallback を防ぐため、title の包含一致を要求する。
  */
 function matchesRequestedLaw(
-  requestedName: string,
+  requestedName: string | undefined,
   result: EgovLawSearchResult
 ): boolean {
   const title =
     result.current_revision_info?.law_title ??
     result.revision_info?.law_title;
-  if (!title) return false;
+  if (!title || !requestedName) return false;
   const a = normalizeLawTitle(requestedName);
   const b = normalizeLawTitle(title);
+  if (!a || !b) return false;
   return a.includes(b) || b.includes(a);
 }
 
