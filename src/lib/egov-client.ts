@@ -26,6 +26,37 @@ async function rateLimit(): Promise<void> {
 }
 
 /**
+ * 法令名を比較用に正規化する
+ * 全角/半角、句読点、括弧、空白を取り除き、緩い包含比較に使う
+ */
+function normalizeLawTitle(s: string): string {
+  return s
+    // 全角英数→半角
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    // 句読点・括弧・中黒・空白の除去
+    .replace(/[\s、，,。．・「」『』（）()【】［］\[\]]/g, '')
+    .toLowerCase();
+}
+
+/**
+ * 検索結果が要求された法令名と意味的に一致するか確認する
+ * e-Gov v2 の keyword 検索は税務分野で関連度の低い結果を返すことがある(明治時代の太政官布告など)。
+ * その silent fallback を防ぐため、title の包含一致を要求する。
+ */
+function matchesRequestedLaw(
+  requestedName: string,
+  result: EgovLawSearchResult
+): boolean {
+  const title =
+    result.current_revision_info?.law_title ??
+    result.revision_info?.law_title;
+  if (!title) return false;
+  const a = normalizeLawTitle(requestedName);
+  const b = normalizeLawTitle(title);
+  return a.includes(b) || b.includes(a);
+}
+
+/**
  * 法令名またはlaw_idから法令全文を取得
  */
 export async function fetchLawData(lawNameOrId: string): Promise<{
@@ -44,11 +75,30 @@ export async function fetchLawData(lawNameOrId: string): Promise<{
     lawId = lawNameOrId;
   } else {
     // 名前で検索してlaw_idを取得
-    const results = await searchLaws(name, 1);
+    // 注意: e-Gov v2 の keyword 検索は完全一致ベースの順位付けを保証しないため、
+    // 上位5件を取得して title の包含一致でフィルタする。一致しなければエラーを返す
+    // (旧コードは results[0] を盲目的に返していたため、関連のない明治時代の法令にフォールバックする silent bug があった)。
+    const results = await searchLaws(name, 5);
     if (results.length === 0) {
       throw new Error(`法令が見つかりません: "${name}"`);
     }
-    lawId = results[0].law_info.law_id;
+    const matched = results.find(r => matchesRequestedLaw(name, r));
+    if (!matched) {
+      const previews = results
+        .slice(0, 3)
+        .map(r =>
+          r.current_revision_info?.law_title ??
+          r.revision_info?.law_title ??
+          r.law_info.law_id
+        )
+        .join('; ');
+      throw new Error(
+        `法令名 "${name}" に一致する法令が見つかりませんでした。` +
+        `e-Gov 検索結果上位: ${previews}. ` +
+        `略称を追加するか、正式名称または15桁のlaw_idを直接指定してください。`
+      );
+    }
+    lawId = matched.law_info.law_id;
   }
 
   // キャッシュチェック

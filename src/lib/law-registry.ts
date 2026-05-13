@@ -35,6 +35,18 @@ export const LAW_ID_MAP: Record<string, string> = {
   '印紙税法': '342AC0000000023',
   '登録免許税法': '342AC0000000035',
   '酒税法': '328AC0000000006',
+
+  // === 国際租税・条約関連 ===
+  // 実特法 (jittokuhō, Act on Special Measures for Implementation of Tax Treaties)
+  // 昭和44年法律第46号
+  '租税条約等の実施に伴う所得税法、法人税法及び地方税法の特例等に関する法律': '344AC0000000046',
+  // 実特法施行令 (Cabinet Order, 昭和62年政令第335号)
+  '租税条約等の実施に伴う所得税法、法人税法及び地方税法の特例等に関する法律施行令': '362CO0000000335',
+
+  // === 復興関連 ===
+  // 復興財源確保法 (Reconstruction Financial Resources Securing Act, 平成23年法律第117号)
+  // 復興特別所得税 (the surtax referenced throughout cross-border WHT analyses) is created by this law
+  '東日本大震災からの復興のための施策を実施するために必要な財源の確保に関する特別措置法': '423AC0000000117',
 };
 
 /** 略称 → 正式名称の変換マップ */
@@ -59,6 +71,21 @@ export const LAW_ALIAS_MAP: Record<string, string> = {
   '電帳法': '電子帳簿保存法',
   '措置法': '租税特別措置法',
   '特措法': '租税特別措置法',
+
+  // === 国際租税・条約関連 ===
+  // 実特法 (jittokuhō): the act governing Japanese implementation of tax treaties.
+  // Long form: 租税条約等の実施に伴う所得税法、法人税法及び地方税法の特例等に関する法律
+  '実特法': '租税条約等の実施に伴う所得税法、法人税法及び地方税法の特例等に関する法律',
+  '実施特例法': '租税条約等の実施に伴う所得税法、法人税法及び地方税法の特例等に関する法律',
+  '租税条約実施特例法': '租税条約等の実施に伴う所得税法、法人税法及び地方税法の特例等に関する法律',
+  // 実特法施行令 (Cabinet Order)
+  '実特法施行令': '租税条約等の実施に伴う所得税法、法人税法及び地方税法の特例等に関する法律施行令',
+  '実特令': '租税条約等の実施に伴う所得税法、法人税法及び地方税法の特例等に関する法律施行令',
+
+  // === 復興関連 ===
+  // 復興財源確保法 (fukkō zaigen kakuhohō, Reconstruction Financial Resources Securing Act)
+  // This is the source of the 2.1% 復興特別所得税 surtax referenced in cross-border WHT analyses.
+  '復興財源確保法': '東日本大震災からの復興のための施策を実施するために必要な財源の確保に関する特別措置法',
 };
 
 /**
