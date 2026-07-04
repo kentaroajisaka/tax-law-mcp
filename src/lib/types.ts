@@ -76,6 +76,12 @@ export interface TsutatsuTocLink {
   fullHref?: string;
   /** 対応する条文番号プレフィックス（推測） */
   articlePrefix?: string;
+  /**
+   * 直前の「法第XX条…関係」見出しの条番号。
+   * 見出しにリンクが張られておらず、配下の「令第◯条関係」サブリンクに
+   * 実体がぶら下がる場合に、親となる法条番号を辿るために使う。
+   */
+  parentArticlePrefix?: string;
   /** TOCから直接取得した通達番号（例: "33-1", "69の4-1"） */
   tsutatsuNumber?: string;
 }

@@ -45,6 +45,44 @@ describe('parseTocLinks - kihon形式（デフォルト）', () => {
     const links = parseTocLinks(html);
     expect(links[0].articlePrefix).toBe('33');
   });
+
+  // --- 見出しにリンクが無い条の配下サブリンク（法第47条・第49条のケース） ---
+
+  it('リンク無し見出し配下のサブリンクに親条番号(parentArticlePrefix)を付与する', () => {
+    // 法第47条は素の<p>（リンク無し）、配下の「令第◯条関係」がリンク
+    const html = `
+      <p>法第47条《棚卸資産の売上原価等の計算及びその評価の方法》関係</p>
+      <ul>
+        <li><a href="/law/tsutatsu/kihon/shotoku/08/01.htm">〔棚卸資産の評価の方法（令第99条関係）〕</a></li>
+        <li><a href="/law/tsutatsu/kihon/shotoku/08/02.htm">〔棚卸資産の評価の方法の選定（令第100条関係）〕</a></li>
+      </ul>
+    `;
+    const links = parseTocLinks(html);
+    expect(links.length).toBe(2);
+    // articlePrefix は令番号（99/100）だが、parentArticlePrefix は法条番号(47)
+    expect(links[0].articlePrefix).toBe('99');
+    expect(links[0].parentArticlePrefix).toBe('47');
+    expect(links[1].articlePrefix).toBe('100');
+    expect(links[1].parentArticlePrefix).toBe('47');
+  });
+
+  it('リンク有り見出しは自身の条番号をparentArticlePrefixにし、以降のサブリンクへ引き継ぐ', () => {
+    const html = `
+      <p>法第47条《棚卸資産...》関係</p>
+      <ul><li><a href="/law/tsutatsu/kihon/shotoku/08/01.htm">〔令第99条関係〕</a></li></ul>
+      <p><a href="/law/tsutatsu/kihon/shotoku/08/04.htm">法第48条《有価証券...》関係</a></p>
+      <p>法第49条《減価償却資産...》関係</p>
+      <ul><li><a href="/law/tsutatsu/kihon/shotoku/08/05.htm">〔令第120条関係〕</a></li></ul>
+    `;
+    const links = parseTocLinks(html);
+    const byHref = (h: string) => links.find(l => l.href === h)!;
+    expect(byHref('/law/tsutatsu/kihon/shotoku/08/01.htm').parentArticlePrefix).toBe('47');
+    // 法第48条自身のリンク: articlePrefix も parentArticlePrefix も 48
+    expect(byHref('/law/tsutatsu/kihon/shotoku/08/04.htm').articlePrefix).toBe('48');
+    expect(byHref('/law/tsutatsu/kihon/shotoku/08/04.htm').parentArticlePrefix).toBe('48');
+    // 49条配下は親49へ切り替わる
+    expect(byHref('/law/tsutatsu/kihon/shotoku/08/05.htm').parentArticlePrefix).toBe('49');
+  });
 });
 
 describe('parseTocLinks - sochiho-li形式', () => {
@@ -172,6 +210,17 @@ describe('findPageForNumber', () => {
     expect(findPageForNumber(links, '33-1')).toBe('/path/01.htm');
   });
 
+  it('parentArticlePrefix一致で配下サブリンクのページを返す（リンク無し見出し）', () => {
+    // 法第47条見出しはリンク無し → articlePrefixに47は存在せず、parentArticlePrefixで辿る
+    const links = [
+      { text: '〔令第99条関係〕', href: '/path/08/01.htm', articlePrefix: '99', parentArticlePrefix: '47' },
+      { text: '法第48条関係', href: '/path/08/04.htm', articlePrefix: '48', parentArticlePrefix: '48' },
+    ];
+    expect(findPageForNumber(links, '47-1')).toBe('/path/08/01.htm');
+    // 48-1 は articlePrefix で先に一致し、回帰しない
+    expect(findPageForNumber(links, '48-1')).toBe('/path/08/04.htm');
+  });
+
   it('未発見時はnullを返す', () => {
     const links = [
       { text: '法第33条関係', href: '/path/33.htm', articlePrefix: '33' },
@@ -203,6 +252,20 @@ describe('getCandidatePages', () => {
     const candidates = getCandidatePages(links, '34-1');
     expect(candidates).toContain('/path/33.htm');
     expect(candidates).not.toContain('/path/50.htm');
+  });
+
+  it('parentArticlePrefix一致の配下サブリンクを全て候補に含める', () => {
+    // 法第47条配下の3ページ（令99/100/104）はいずれも候補に入る
+    const links = [
+      { text: '〔令第99条関係〕', href: '/path/08/01.htm', articlePrefix: '99', parentArticlePrefix: '47' },
+      { text: '〔令第100条関係〕', href: '/path/08/02.htm', articlePrefix: '100', parentArticlePrefix: '47' },
+      { text: '〔令第104条関係〕', href: '/path/08/03.htm', articlePrefix: '104', parentArticlePrefix: '47' },
+      { text: '法第48条関係', href: '/path/08/04.htm', articlePrefix: '48', parentArticlePrefix: '48' },
+    ];
+    const candidates = getCandidatePages(links, '47-8');
+    expect(candidates).toContain('/path/08/01.htm');
+    expect(candidates).toContain('/path/08/02.htm');
+    expect(candidates).toContain('/path/08/03.htm');
   });
 });
 
@@ -244,15 +307,72 @@ describe('extractTsutatsuEntry', () => {
     expect(entry!.body).toContain('テスト内容');
   });
 
-  it('「の」付き番号に対応する', () => {
+  it('「の」付き番号に対応する（枝番のみ存在する場合のフォールバック）', () => {
     const html = `
       <h2>見出し</h2>
       <strong>33-6の2</strong>　テスト内容
       <strong>33-7</strong>　次
     `;
     const entry = extractTsutatsuEntry(html, '33-6', 'https://example.com');
-    // 33-6 を検索した場合、33-6の2 もマッチする（の\d+ がオプション）
+    // 33-6（枝番なし）が存在しない場合は、33-6の2 にフォールバックする
     expect(entry).not.toBeNull();
+    expect(entry!.body).toContain('テスト内容');
+  });
+
+  it('枝番なしの番号を、枝番付き（の2等）より優先して抽出する', () => {
+    // NTA実ページの構造: 49-1（タグ分割）と 49-1の2（1タグ）が併存する
+    const html = `
+      <h2>（取得の意義）</h2>
+      <strong>49</strong><strong>－1</strong>　これが本来の49-1です
+      <h2>（別見出し）</h2>
+      <strong>49－1の2</strong>　これは49-1の2で別物です
+    `;
+    const entry = extractTsutatsuEntry(html, '49-1', 'https://example.com');
+    expect(entry).not.toBeNull();
+    // 「49-1の2」ではなく「49-1」本体を返す
+    expect(entry!.body).toContain('本来の49-1');
+    expect(entry!.body).not.toContain('別物');
+    expect(entry!.caption).toBe('（取得の意義）');
+  });
+
+  it('隣接番号（49-2検索が49-2の2を誤取得しない）', () => {
+    const html = `
+      <h2>見出しA</h2>
+      <strong>49</strong><strong>－2</strong>　49-2の本文
+      <h2>見出しB</h2>
+      <strong>49</strong><strong>－2の2</strong>　49-2の2の本文
+    `;
+    const entry = extractTsutatsuEntry(html, '49-2', 'https://example.com');
+    expect(entry).not.toBeNull();
+    expect(entry!.body).toContain('49-2の本文');
+    expect(entry!.caption).toBe('見出しA');
+  });
+
+  it('複数の枝番（の3の2）にもフォールバックで対応する', () => {
+    const html = `
+      <h2>見出し</h2>
+      <strong>49－1の3の2</strong>　土石採取業の内容
+      <strong>49－1の4</strong>　次
+    `;
+    const entry = extractTsutatsuEntry(html, '49-1の3の2', 'https://example.com');
+    expect(entry).not.toBeNull();
+    expect(entry!.body).toContain('土石採取業');
+  });
+
+  it('下位レイヤーの本体を優先する（49-1の3検索が49-1の3の2を誤取得しない）', () => {
+    // 通達番号ルール: 「…の2」があれば同レイヤーに本体（実質「…の1」）が存在する。
+    // これは階層が深くても同じ。49-1の3（＝実質 49-1の3の1）は 49-1の3の2 の一つ上の本体。
+    const html = `
+      <h2>見出しA</h2>
+      <strong>49</strong><strong>－1の3</strong>　これが本体の49-1の3
+      <h2>見出しB</h2>
+      <strong>49－1の3の2</strong>　これは49-1の3の2で別物
+    `;
+    const entry = extractTsutatsuEntry(html, '49-1の3', 'https://example.com');
+    expect(entry).not.toBeNull();
+    expect(entry!.body).toContain('本体の49-1の3');
+    expect(entry!.body).not.toContain('別物');
+    expect(entry!.caption).toBe('見出しA');
   });
 
   it('未発見時はnullを返す', () => {
