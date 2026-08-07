@@ -60,6 +60,25 @@ function matchesRequestedLaw(
 }
 
 /**
+ * e-Gov の law_id 形式かどうかを判定する
+ *
+ * law_id は「元号年3桁 + 法令種別を表す12文字」の全15文字。種別部分の形は一様ではなく、
+ * v2 API から実データ401件を抽出して確認できただけでも以下の形がある:
+ *   340AC0000000033 (法律)   340CO0000000096 (政令)   105DF0000000337 (太政官布告)
+ *   340M50000040011 (府省令) 348RJNJ10004000 (規則)   416M60001FCA002 (府省令・英字混在)
+ *   321CONSTITUTION (日本国憲法)
+ * 種別コードを列挙する方式だと新しい形式を取りこぼすため(旧実装の /^\d{15}$/ は英字を含む
+ * 実データに一切マッチせず、law_id 直接指定が丸ごと死んでいた)、
+ * 「3桁数字 + 英大文字始まりの英数字12文字」という構造だけで判定する。
+ * 法令名は日本語なのでこのパターンには一致しない。
+ */
+const LAW_ID_PATTERN = /^\d{3}[A-Z][A-Z0-9]{11}$/;
+
+export function isLawId(value: string): boolean {
+  return LAW_ID_PATTERN.test(value);
+}
+
+/**
  * 法令名またはlaw_idから法令全文を取得
  */
 export async function fetchLawData(lawNameOrId: string): Promise<{
@@ -73,8 +92,8 @@ export async function fetchLawData(lawNameOrId: string): Promise<{
 
   if (resolvedId) {
     lawId = resolvedId;
-  } else if (/^\d{15}$/.test(lawNameOrId)) {
-    // 15桁の数字ならlaw_idそのもの
+  } else if (isLawId(lawNameOrId)) {
+    // law_id 形式ならそのまま使う(プリセット未登録の法令はこの経路で取得できる)
     lawId = lawNameOrId;
   } else {
     // 名前で検索してlaw_idを取得
@@ -98,7 +117,7 @@ export async function fetchLawData(lawNameOrId: string): Promise<{
       throw new Error(
         `法令名 "${name}" に一致する法令が見つかりませんでした。` +
         `e-Gov 検索結果上位: ${previews}. ` +
-        `略称を追加するか、正式名称または15桁のlaw_idを直接指定してください。`
+        `略称を追加するか、正式名称または law_id (例: 340AC0000000033) を直接指定してください。`
       );
     }
     lawId = matched.law_info.law_id;
