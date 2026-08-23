@@ -49,24 +49,60 @@ export function parseTocLinks(
 /**
  * 基本通達形式のTOCパーサー
  *
- * 例: <a href="/law/tsutatsu/kihon/shotoku/04/07.htm">法第33条《譲渡所得》関係</a>
+ * NTAの目次では「法第XX条《...》関係」が見出しになっており、2形式が混在する:
+ *   1. 見出しにリンクが張られている（例: 法第48条）→ articlePrefix で到達可能
+ *   2. 見出しは素の <p> のままで、配下の「令第◯条関係」サブリンクに
+ *      実体がぶら下がる（例: 法第47条・第49条）→ サブリンクの articlePrefix は
+ *      「令第99条」等の令番号になり、法条番号(47/49)からは辿れない
+ *
+ * そこでドキュメント順に走査し、直前に現れた「法第XX条…関係」見出しの条番号を
+ * parentArticlePrefix として各サブリンクへ付与する。これにより見出しにリンクが
+ * 無い条でも配下ページに到達できる。
+ *
+ * 例:
+ *   <p>法第47条《棚卸資産...》関係</p>                       （リンク無し見出し → parent=47）
+ *   <ul><li><a href=".../08/01.htm">〔...令第99条関係〕</a></li></ul>  （parent=47 が付く）
+ *   <p><a href=".../08/04.htm">法第48条《...》関係</a></p>   （リンク有り見出し）
  */
 function parseTocLinks_Kihon(html: string): TsutatsuTocLink[] {
   const links: TsutatsuTocLink[] = [];
-  const linkRegex = /<a\s+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+
+  // 「法第XX条…関係」見出し（素のテキスト）と <a> リンクを出現順に走査。
+  // 見出しがリンク化されている場合は <a> 側（alt2）にマッチするため、
+  // alt1 にマッチするのはリンクの張られていない見出しのみとなる。
+  const tokenRegex =
+    /法第(\d+)条(?:の\d+)?《[^》]*》関係|<a\s+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+
+  let currentParentPrefix: string | undefined;
   let match;
 
-  while ((match = linkRegex.exec(html)) !== null) {
-    const href = match[1];
-    const text = stripTags(match[2]).trim();
+  while ((match = tokenRegex.exec(html)) !== null) {
+    // alt1: リンクの張られていない「法第XX条…関係」見出し
+    if (match[1] !== undefined) {
+      currentParentPrefix = match[1];
+      continue;
+    }
+
+    // alt2: <a> リンク
+    const href = match[2];
+    const text = stripTags(match[3]).trim();
 
     // 通達ページへのリンクのみ（/law/tsutatsu/ を含む）
     if (!href.includes('/law/tsutatsu/')) continue;
     if (!text) continue;
 
+    // リンクテキスト自体が「法第XX条…関係」見出しなら親条番号を更新
+    const headingNum = extractArticleHeadingNumber(text);
+    if (headingNum) currentParentPrefix = headingNum;
+
     const articlePrefix = extractArticlePrefix(text);
 
-    links.push({ text, href: href.split('#')[0], articlePrefix });
+    links.push({
+      text,
+      href: href.split('#')[0],
+      articlePrefix,
+      parentArticlePrefix: currentParentPrefix,
+    });
   }
 
   return links;
@@ -225,9 +261,17 @@ export function findPageForNumber(
     }
   }
 
-  // 3. articlePrefix完全一致（基本通達形式）
+  // 3. articlePrefix完全一致（基本通達形式・見出しにリンクがある条）
   for (const link of tocLinks) {
     if (link.articlePrefix === prefix) {
+      return link.href;
+    }
+  }
+
+  // 3.5 parentArticlePrefix完全一致（見出しにリンクが無い条の配下サブリンク）
+  //     例: "47-1" → 法第47条見出し配下の /08/01.htm（令第99条関係）
+  for (const link of tocLinks) {
+    if (link.parentArticlePrefix === prefix) {
       return link.href;
     }
   }
@@ -273,6 +317,15 @@ export function getCandidatePages(
 
   const candidates: string[] = [];
   const seen = new Set<string>();
+
+  // 0. parentArticlePrefix 完全一致（見出しにリンクが無い条の配下サブリンク群）
+  //    例: "47-8" が /08/01.htm に無くても、法第47条配下の /08/02・/08/03 を候補にする
+  for (const link of tocLinks) {
+    if (link.parentArticlePrefix === prefix && !seen.has(link.href)) {
+      candidates.push(link.href);
+      seen.add(link.href);
+    }
+  }
 
   // 1. tsutatsuNumber ベースの近いページ（措置法通達用）
   if (!isNaN(prefixNum)) {
@@ -335,28 +388,45 @@ export function extractTsutatsuEntry(
   const normalizedNumber = number
     .replace(/[-−–ー－]/g, '[\\-−–ー－]');
 
-  // パターン1: 1つのstrongタグ内に完結
-  const pattern1 = new RegExp(
-    `<strong>\\s*${normalizedNumber}(の\\d+)?\\s*</strong>`,
-    'i'
-  );
-
-  // パターン2: strongタグをまたぐ（<strong>36</strong><strong>－15</strong>）
-  // 番号のプレフィックスとサフィックスに分割
+  // 番号のプレフィックスとサフィックスに分割（タグ分割記述用）
   const dashParts = number.split(/[-−–ー－]/);
-  let pattern2: RegExp | null = null;
-  if (dashParts.length >= 2) {
-    const prefix = dashParts[0].trim();
-    const suffix = dashParts.slice(1).join('[\\-−–ー－]');
-    pattern2 = new RegExp(
-      `<strong>\\s*${prefix}\\s*</strong>\\s*<strong>\\s*[\\-−–ー－]\\s*${suffix}(の\\d+)?\\s*</strong>`,
-      'i'
-    );
-  }
+  const hasSplit = dashParts.length >= 2;
+  const splitPrefix = hasSplit ? dashParts[0].trim() : '';
+  const splitSuffix = hasSplit ? dashParts.slice(1).join('[\\-−–ー－]') : '';
 
-  let match = pattern1.exec(html);
-  if (!match && pattern2) {
-    match = pattern2.exec(html);
+  // 通達番号は「1タグ完結」または「タグ分割（<strong>49</strong><strong>－1</strong>）」の
+  // いずれかで記述される。両形式のパターンを、末尾の枝番指定 branch を差し替えて生成する。
+  const buildPatterns = (branch: string): RegExp[] => {
+    const pats: RegExp[] = [
+      // パターン1: 1つのstrongタグ内に完結
+      new RegExp(`<strong>\\s*${normalizedNumber}${branch}\\s*</strong>`, 'i'),
+    ];
+    if (hasSplit) {
+      // パターン2: strongタグをまたぐ（<strong>36</strong><strong>－15</strong>）
+      pats.push(
+        new RegExp(
+          `<strong>\\s*${splitPrefix}\\s*</strong>\\s*<strong>\\s*[\\-−–ー－]\\s*${splitSuffix}${branch}\\s*</strong>`,
+          'i'
+        )
+      );
+    }
+    return pats;
+  };
+
+  // 枝番「の◯」を含まない完全一致を最優先し、無ければ枝番許容にフォールバックする。
+  // 例: "49-1" 検索時に "49-1の2" を誤って拾わず、実在する "49-1" を返すため。
+  const patternTiers = [
+    buildPatterns(''),              // 1) 完全一致（枝番なし）
+    buildPatterns('(?:の\\d+)+'),   // 2) 枝番あり（49-1の2, 49-1の3の2 等）にフォールバック
+  ];
+
+  let match: RegExpExecArray | null = null;
+  for (const tier of patternTiers) {
+    for (const pat of tier) {
+      match = pat.exec(html);
+      if (match) break;
+    }
+    if (match) break;
   }
 
   if (!match) return null;
@@ -388,9 +458,11 @@ export function formatTocAsText(
 
   if (sectionFilter) {
     const filter = sectionFilter.toLowerCase();
+    const numericFilter = sectionFilter.replace(/[^0-9]/g, '');
     links = tocLinks.filter(
       link => link.text.toLowerCase().includes(filter) ||
-              (link.articlePrefix && link.articlePrefix === sectionFilter.replace(/[^0-9]/g, '')) ||
+              (link.articlePrefix && link.articlePrefix === numericFilter) ||
+              (link.parentArticlePrefix && link.parentArticlePrefix === numericFilter) ||
               (link.tsutatsuNumber && normalizeDashes(link.tsutatsuNumber).startsWith(sectionFilter.split(/[-−–ー－]/)[0]))
     );
   }
@@ -406,6 +478,16 @@ export function formatTocAsText(
 
 // --- 内部ヘルパー ---
 
+
+/**
+ * リンクテキストが「法第XX条…関係」見出しの場合、その条番号を返す。
+ * 見出しでなければ undefined。
+ * 例: "法第48条《有価証券...》関係" → "48"、"法第48条の2《...》関係" → "48"
+ */
+function extractArticleHeadingNumber(text: string): string | undefined {
+  const m = text.match(/^法第(\d+)条/);
+  return m ? m[1] : undefined;
+}
 
 /** テキストから条文番号プレフィックスを抽出 */
 function extractArticlePrefix(text: string): string | undefined {
