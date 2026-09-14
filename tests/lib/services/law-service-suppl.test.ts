@@ -60,3 +60,20 @@ describe('附則', () => {
     expect(total).toBeGreaterThan(100);
   }, 20000);
 });
+
+describe('supplementary の型ゆらぎ', () => {
+  it('真偽値 true と文字列 "true" が同じ結果になる', async () => {
+    const bool = await getSupplProvision({ lawName: '保険法', supplementary: true, article: '1' });
+    const str = await getSupplProvision({ lawName: '保険法', supplementary: 'true', article: '1' });
+    expect(str.text).toBe(bool.text);
+    expect(str.text).toContain('公布の日から起算して');
+  }, 20000);
+
+  it('"制定" "制定時" "本則" も制定時附則として扱う', async () => {
+    const base = await getSupplProvision({ lawName: '保険法', supplementary: true, article: '1' });
+    for (const q of ['制定', '制定時', '本則']) {
+      const r = await getSupplProvision({ lawName: '保険法', supplementary: q, article: '1' });
+      expect(r.text, `supplementary="${q}"`).toBe(base.text);
+    }
+  }, 30000);
+});

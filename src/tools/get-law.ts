@@ -57,7 +57,11 @@ export function registerGetLawTool(server: McpServer) {
           };
         }
 
-        if (args.supplementary !== undefined) {
+        const wantsSuppl =
+          args.supplementary !== undefined &&
+          args.supplementary !== false &&
+          String(args.supplementary).toLowerCase() !== 'false';
+        if (wantsSuppl) {
           const result = await getSupplProvision({
             lawName: args.law_name,
             supplementary: args.supplementary,

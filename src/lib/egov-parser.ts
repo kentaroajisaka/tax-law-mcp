@@ -600,7 +600,12 @@ export function findSupplProvision(
   if (nodes.length === 0) return null;
 
   const q = typeof query === 'string' ? query.trim() : '';
-  if (query === true || q === '' || q === '制定' || q === '制定時' || q === '本則') {
+  // クライアントによっては真偽値が文字列 "true" として届く
+  const isSeitei =
+    query === true ||
+    q === '' ||
+    ['true', '制定', '制定時', '本則', '附則'].includes(q.toLowerCase());
+  if (isSeitei) {
     const idx = infos.findIndex((i) => !i.amendLawNum);
     if (idx < 0) return { ambiguous: infos };
     return { node: nodes[idx], info: infos[idx] };
