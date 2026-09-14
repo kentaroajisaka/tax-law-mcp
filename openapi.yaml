@@ -39,10 +39,10 @@ paths:
           description: "法令名または略称。例: 所得税法, 措法, 所令"
         - name: article
           in: query
-          required: true
+          required: false
           schema:
             type: string
-          description: "条文番号。例: 33, 33の2"
+          description: "条文番号。例: 33, 33の2。format=toc/suppl のときは省略可"
         - name: paragraph
           in: query
           required: false
@@ -53,16 +53,34 @@ paths:
           in: query
           required: false
           schema:
-            type: integer
-          description: "号番号"
+            type: string
+          description: |
+            号番号。paragraph を省略しても全項から探す。
+            枝番号の号は "3の2" "12の5の2" のように指定する。漢数字の見出し（"六"）も可。
+        - name: subitem
+          in: query
+          required: false
+          schema:
+            type: string
+          description: |
+            号の下のサブアイテム。item と併せて指定する。
+            階層が深い場合は区切って並べる。例: イ, ロ, "イ (1)", "イ-1-i"
+        - name: supplementary
+          in: query
+          required: false
+          schema:
+            type: string
+          description: |
+            附則を対象にする。"true" または "制定" で制定時附則。
+            改正法の附則は法令番号で指定する。例: "平成29年法律第45号"
         - name: format
           in: query
           required: false
           schema:
             type: string
-            enum: [markdown, toc]
+            enum: [markdown, toc, suppl]
             default: markdown
-          description: "出力形式。markdown=条文全文, toc=目次のみ"
+          description: "出力形式。markdown=条文全文, toc=目次のみ, suppl=附則の一覧"
       responses:
         "200":
           description: "条文取得成功"
