@@ -134,11 +134,18 @@ describe.sequential('全通達の実NTA取得テスト', () => {
     expect(result.entry!.number).toBe('33-9');
   }, 30000);
 
-  it('措置法通達（申告所得税関係）10-1', async () => {
-    const result = await fetchTsutatsu('措通（申告）', '10-1');
+  // NTA は第10条と第10条の2をまとめて「10・10の２-1」（全角数字まじり）に番号を改めた（2026-10 確認）
+  it('措置法通達（申告所得税関係）10・10の2-1', async () => {
+    const result = await fetchTsutatsu('措通（申告）', '10・10の2-1');
     expect(result.error).toBeNull();
     expect(result.entry).not.toBeNull();
-    expect(result.entry!.number).toBe('10-1');
+    expect(result.entry!.number).toBe('10・10の2-1');
+  }, 30000);
+
+  it('措置法通達（申告所得税関係）旧番号 10-1 でも、まとめ見出し 10・10の2-1 を返す', async () => {
+    const result = await fetchTsutatsu('措通（申告）', '10-1');
+    expect(result.error).toBeNull();
+    expect(result.entry!.number).toBe('10・10の2-1');
   }, 30000);
 
   it('措置法通達（法人税編）— TOC取得成功', async () => {

@@ -385,14 +385,20 @@ export function extractTsutatsuEntry(
   pageUrl: string
 ): TsutatsuEntry | null {
   // ダッシュの表記揺れに対応: -, −(U+2212), –(U+2013), ー(長音), -(U+FF0D), -(U+FF0D全角)
-  const normalizedNumber = number
+  // 数字は半角・全角のどちらでも一致させる（NTA は「10・10の２-1」のように全角数字を混ぜることがある）
+  const flexDigits = (t: string) =>
+    t.replace(/[0-9０-９]/g, (ch) => {
+      const h = String.fromCharCode(ch.charCodeAt(0) >= 0xff10 ? ch.charCodeAt(0) - 0xfee0 : ch.charCodeAt(0));
+      return `[${h}${String.fromCharCode(h.charCodeAt(0) + 0xfee0)}]`;
+    });
+  const normalizedNumber = flexDigits(number)
     .replace(/[-−–ー－]/g, '[\\-−–ー－]');
 
   // 番号のプレフィックスとサフィックスに分割（タグ分割記述用）
   const dashParts = number.split(/[-−–ー－]/);
   const hasSplit = dashParts.length >= 2;
-  const splitPrefix = hasSplit ? dashParts[0].trim() : '';
-  const splitSuffix = hasSplit ? dashParts.slice(1).join('[\\-−–ー－]') : '';
+  const splitPrefix = hasSplit ? flexDigits(dashParts[0].trim()) : '';
+  const splitSuffix = hasSplit ? dashParts.slice(1).map(flexDigits).join('[\\-−–ー－]') : '';
 
   // 通達番号は「1タグ完結」または「タグ分割（<strong>49</strong><strong>－1</strong>）」の
   // いずれかで記述される。両形式のパターンを、末尾の枝番指定 branch を差し替えて生成する。
@@ -417,19 +423,31 @@ export function extractTsutatsuEntry(
   // 例: "49-1" 検索時に "49-1の2" を誤って拾わず、実在する "49-1" を返すため。
   const patternTiers = [
     buildPatterns(''),              // 1) 完全一致（枝番なし）
-    buildPatterns('(?:の\\d+)+'),   // 2) 枝番あり（49-1の2, 49-1の3の2 等）にフォールバック
+    buildPatterns('(?:の[\\d０-９]+)+'),   // 2) 枝番あり（49-1の2, 49-1の3の2 等）にフォールバック
   ];
+  // 3) 複数の条をまとめた見出し（例: 措通（申告）「10・10の２-1」）。旧番号「10-1」で引かれたときの受け皿
+  //    「<条>・…-<枝>」の形だけを拾い、条と枝はどちらも完全一致させる
+  if (hasSplit && dashParts.length === 2) {
+    patternTiers.push([
+      new RegExp(`<strong>\\s*${splitPrefix}・[^<\\-−–ー－]+[\\-−–ー－]\\s*${splitSuffix}\\s*</strong>`, 'i'),
+    ]);
+  }
 
   let match: RegExpExecArray | null = null;
-  for (const tier of patternTiers) {
+  let tierIndex = -1;
+  for (const [ti, tier] of patternTiers.entries()) {
     for (const pat of tier) {
       match = pat.exec(html);
       if (match) break;
     }
-    if (match) break;
+    if (match) { tierIndex = ti; break; }
   }
 
   if (!match) return null;
+  // まとめ見出しで拾ったときは、実際の番号（例「10・10の2-1」）を返して取り違えに気づけるようにする
+  const foundNumber = tierIndex === 2
+    ? match[0].replace(/<[^>]+>/g, '').trim().replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    : number;
 
   const startIdx = match.index;
 
@@ -440,7 +458,7 @@ export function extractTsutatsuEntry(
   const entryText = extractEntryText(html, startIdx);
 
   return {
-    number,
+    number: foundNumber,
     caption,
     body: entryText,
     url: pageUrl,

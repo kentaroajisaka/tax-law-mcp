@@ -381,3 +381,21 @@ describe('extractTsutatsuEntry', () => {
     expect(entry).toBeNull();
   });
 });
+
+// 2026-10：NTA が措通（申告）の第10条・第10条の2を「10・10の２-1」（全角数字まじり）にまとめた
+describe('extractTsutatsuEntry — 全角数字・まとめ見出し', () => {
+  const html = '<h2>（試験研究費の範囲）</h2><p class="indent1"><strong>10・10の２-1</strong>&emsp;本文です。</p><p class="indent1"><strong>10・10の２-2</strong>&emsp;次です。</p>';
+  it('半角で引いても全角まじりの番号に一致する', () => {
+    const e = extractTsutatsuEntry(html, '10・10の2-1', '/x.htm');
+    expect(e?.number).toBe('10・10の2-1');
+    expect(e?.body).toContain('本文です');
+  });
+  it('旧番号 10-2 は、まとめ見出し 10・10の2-2 を実際の番号つきで返す', () => {
+    const e = extractTsutatsuEntry(html, '10-2', '/x.htm');
+    expect(e?.number).toBe('10・10の2-2');
+    expect(e?.body).toContain('次です');
+  });
+  it('枝が違えば拾わない（10-3 は無い）', () => {
+    expect(extractTsutatsuEntry(html, '10-3', '/x.htm')).toBeNull();
+  });
+});
