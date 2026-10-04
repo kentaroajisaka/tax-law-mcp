@@ -399,3 +399,32 @@ describe('extractTsutatsuEntry — 全角数字・まとめ見出し', () => {
     expect(extractTsutatsuEntry(html, '10-3', '/x.htm')).toBeNull();
   });
 });
+
+// HTML コメントに退避された旧版の通達文を返さない
+describe('extractTsutatsuEntry — HTMLコメント', () => {
+  const html = [
+    '<!--',
+    '<h2>（適用除外事業者であるかどうかの判定）</h2>',
+    '<p class="indent1"><strong>67の5-1の2</strong>&emsp;旧版の文章です。</p>',
+    '-->',
+    '<h2>（常時使用する従業員の範囲）</h2>',
+    '<p class="indent1"><strong>67の5-1の2</strong>&emsp;現行の文章です。</p>',
+    '<p class="indent1"><strong>67の5-1の3</strong>&emsp;次です。</p>',
+  ].join('\n');
+
+  it('コメント内の旧版ではなく、表示されている現行の通達を返す', () => {
+    const e = extractTsutatsuEntry(html, '67の5-1の2', '/x.htm');
+    expect(e).not.toBeNull();
+    expect(e!.caption).toBe('（常時使用する従業員の範囲）');
+    expect(e!.body).toContain('現行の文章です');
+    expect(e!.body).not.toContain('旧版');
+    expect(e!.body).not.toContain('-->');
+  });
+
+  it('本文の末尾にコメントの開始記号が混ざらない', () => {
+    const h = '<h2>（見出し）</h2><p><strong>67の5-1</strong>&emsp;本文です。</p><!--\n<h2>（旧）</h2><p><strong>67の5-2</strong>旧</p>\n-->';
+    const e = extractTsutatsuEntry(h, '67の5-1', '/x.htm');
+    expect(e!.body).toContain('本文です');
+    expect(e!.body).not.toContain('<!--');
+  });
+});
