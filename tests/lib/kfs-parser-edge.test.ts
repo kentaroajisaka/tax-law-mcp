@@ -339,3 +339,49 @@ describe('resolveUrl behavior (via parseCollectionIndex)', () => {
     expect(result[0].caseUrl).toBe('https://www.kfs.go.jp/service/JP/139/01/index.html');
   });
 });
+
+// 古いテンプレートでは本文の途中（章・節の区切り）にも「トップに戻る」が入る
+describe('parseCaseFullText - 本文の途中に pagetop がある場合', () => {
+  const html = `
+  <div id="main">
+  <h1>(平22.3.2、裁決事例集No.79)</h1>
+  <h2>1　事実</h2>
+  <p>事実の本文。</p>
+  <p class="pagetop"><a href="#header">トップに戻る</a></p>
+  <h2>4　判断</h2>
+  <p>審判所の判断の本文。</p>
+  <p class="pagetop"><a href="#header">トップに戻る</a></p>
+  </div>
+  <div id="side"><p>サイドバー</p></div>
+  <div id="footer">フッター</div>`;
+
+  it('最初の pagetop で打ち切らず、本文の最後まで取得する', () => {
+    const result = parseCaseFullText(html);
+    expect(result).not.toBeNull();
+    expect(result!.body).toContain('事実の本文');
+    expect(result!.body).toContain('審判所の判断の本文');
+  });
+
+  it('途中の「トップに戻る」と、サイドバー・フッターは含めない', () => {
+    const result = parseCaseFullText(html);
+    expect(result!.body).not.toContain('トップに戻る');
+    expect(result!.body).not.toContain('サイドバー');
+    expect(result!.body).not.toContain('フッター');
+  });
+
+  it('div#saiketsu のテンプレートでも同じ', () => {
+    const h = `
+    <div id="saiketsu">
+    <h3>（平成30年1月9日）《裁決書（抄）》</h3>
+    <p>前半。</p>
+    <p class="pagetop"><a href="#header">トップに戻る</a></p>
+    <p>後半。</p>
+    <p class="pagetop"><a href="#header">トップに戻る</a></p>
+    </div>
+    <div id="side">サイド</div>`;
+    const result = parseCaseFullText(h);
+    expect(result!.body).toContain('前半');
+    expect(result!.body).toContain('後半');
+    expect(result!.body).not.toContain('トップに戻る');
+  });
+});
