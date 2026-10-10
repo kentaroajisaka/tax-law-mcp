@@ -165,3 +165,96 @@ describe('fetchLawData — law_id 直接指定', () => {
     expect(result.lawTitle).toBe('行政手続法');
   }, 15000);
 });
+
+/** /laws の検索結果1件分 */
+function searchHit(lawId: string, title: string, abbrev: string | null = null) {
+  return {
+    law_info: { law_id: lawId, law_type: 'Act', law_num: '', promulgation_date: '' },
+    revision_info: { law_title: title, abbrev, repeal_status: 'None' },
+  };
+}
+
+describe('fetchLawData — 法令名の解決', () => {
+  beforeEach(() => {
+    lawDataCache.clear();
+    lawSearchCache.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** /laws は検索結果、/law_data は法令本文を返す fetch モック。呼ばれた URL を記録する */
+  function stubSearchAndData(laws: unknown[], lawId: string, title: string): string[] {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        urls.push(url);
+        const body = url.includes('/laws?') ? { laws } : makeLawData(lawId, title);
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      })
+    );
+    return urls;
+  }
+
+  it('法令名検索は law_title で行う（/laws は keyword を黙って無視し、全法令を law_id 順に返すため）', async () => {
+    const urls = stubSearchAndData(
+      [searchHit('343AC1000000089', '社会保険労務士法', '社労士法')],
+      '343AC1000000089',
+      '社会保険労務士法'
+    );
+
+    const result = await fetchLawData('社会保険労務士法');
+
+    expect(result.lawId).toBe('343AC1000000089');
+    const searchUrl = new URL(urls[0]);
+    expect(searchUrl.pathname).toBe('/api/2/laws');
+    expect(searchUrl.searchParams.get('law_title')).toBe('社会保険労務士法');
+    expect(searchUrl.searchParams.has('keyword')).toBe(false);
+  });
+
+  it('部分一致の候補が先に並んでいても、法令名が完全一致する法令を選ぶ', async () => {
+    const urls = stubSearchAndData(
+      [
+        searchHit('343AC1000000089', '社会保険労務士法', '社労士法'),
+        searchHit('343CO0000000327', '社会保険労務士法施行令', '社労士法施行令'),
+      ],
+      '343CO0000000327',
+      '社会保険労務士法施行令'
+    );
+
+    const result = await fetchLawData('社会保険労務士法施行令');
+
+    expect(result.lawId).toBe('343CO0000000327');
+    expect(urls[1]).toBe('https://laws.e-gov.go.jp/api/2/law_data/343CO0000000327');
+  });
+
+  it('e-Gov に登録された略称の完全一致でも解決する', async () => {
+    stubSearchAndData(
+      [searchHit('343AC1000000089', '社会保険労務士法', '社労士法')],
+      '343AC1000000089',
+      '社会保険労務士法'
+    );
+
+    const result = await fetchLawData('社労士法');
+
+    expect(result.lawId).toBe('343AC1000000089');
+  });
+
+  it('完全一致がなければ別の法令を返さず、候補つきで見つからないと報告する', async () => {
+    const urls = stubSearchAndData(
+      [searchHit('343AC1000000089', '社会保険労務士法', '社労士法')],
+      '343AC1000000089',
+      '社会保険労務士法'
+    );
+
+    await expect(fetchLawData('社会保険労務')).rejects.toThrow(/完全一致なし.*社会保険労務士法/);
+    // 法令本文（/law_data）は取りに行かない
+    expect(urls).toHaveLength(1);
+  });
+});

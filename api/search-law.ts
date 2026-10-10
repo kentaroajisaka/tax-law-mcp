@@ -17,6 +17,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
   return res.status(200).json({
     results: result.results,
+    mode: result.mode,
     total: result.results.length,
     source: 'e-Gov法令検索',
     url: 'https://laws.e-gov.go.jp',
