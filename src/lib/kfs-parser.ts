@@ -213,7 +213,15 @@ export function parseCaseFullText(html: string): KfsCaseFullText | null {
   }
 
   // pagetop で終了位置を決定
-  const pagetopIdx = html.indexOf('class="pagetop"', contentStart);
+  // 古いテンプレートでは本文の途中（章・節の区切り）にも「トップに戻る」(p.pagetop) が入るため、
+  // 最初の pagetop ではなく、サイドバー（div#side）または footer より前で最後の pagetop を本文の終わりとする
+  let searchLimit = html.length;
+  for (const marker of ['id="side"', 'id="footer"']) {
+    const idx = html.indexOf(marker, contentStart);
+    if (idx !== -1 && idx < searchLimit) searchLimit = idx;
+  }
+  const lastPagetop = html.lastIndexOf('class="pagetop"', searchLimit);
+  const pagetopIdx = lastPagetop >= contentStart ? lastPagetop : -1;
   let contentEnd: number;
   if (pagetopIdx !== -1) {
     // pagetop の直前の要素まで
@@ -224,7 +232,10 @@ export function parseCaseFullText(html: string): KfsCaseFullText | null {
     contentEnd = footerIdx > 0 ? html.lastIndexOf('<', footerIdx) : html.length;
   }
 
-  const bodyHtml = html.substring(contentStart, contentEnd);
+  // 本文の途中にある「トップに戻る」のリンクは本文ではないので取り除く
+  const bodyHtml = html
+    .substring(contentStart, contentEnd)
+    .replace(/<p\s+class="pagetop"[^>]*>[\s\S]*?<\/p>/gi, '');
   return extractFullText(bodyHtml, html);
 }
 
