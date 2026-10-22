@@ -384,6 +384,10 @@ export function extractTsutatsuEntry(
   number: string,
   pageUrl: string
 ): TsutatsuEntry | null {
+  // ページの裏側に残っている HTML コメント（改正前の通達文が <!-- ... --> に退避されていることがある）は
+  // 画面に表示されないため、検索対象から外す。コメント内の旧版に先に一致して返してしまうのを防ぐ。
+  html = html.replace(/<!--[\s\S]*?-->/g, '');
+
   // ダッシュの表記揺れに対応: -, −(U+2212), –(U+2013), ー(長音), -(U+FF0D), -(U+FF0D全角)
   // 数字は半角・全角のどちらでも一致させる（NTA は「10・10の２-1」のように全角数字を混ぜることがある）
   const flexDigits = (t: string) =>
