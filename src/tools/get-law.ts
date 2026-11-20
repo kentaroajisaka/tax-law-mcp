@@ -1,11 +1,19 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { getLawArticle, getLawToc, listSuppl, getSupplProvision } from '../lib/services/law-service.js';
+import {
+  getLawArticle,
+  getLawToc,
+  listSuppl,
+  getSupplProvision,
+  formatVersionNote,
+} from '../lib/services/law-service.js';
 
 export function registerGetLawTool(server: McpServer) {
   server.tool(
     'get_law',
-    '日本の法令から特定の条文を取得する。e-Gov法令API v2を使用。略称にも対応（所法→所得税法、措法→租税特別措置法 等）。',
+    '日本の法令から特定の条文を取得する。e-Gov法令API v2を使用。略称にも対応（所法→所得税法、措法→租税特別措置法 等）。' +
+    '既定では今日の時点で施行中の版を返す。公布済みで未施行の改正（翌年以後の税制改正など）でこの条が変わるときは、結果の末尾の【⚠ この版より後の改正】に施行日と改正法を示す。' +
+    'その場合は asof に施行日を指定して改正後の版を取得し、適用年分は改正法の附則で確かめること。',
     {
       law_name: z.string().describe(
         '法令名または略称。例: "所得税法", "法人税法", "租税特別措置法", "所法", "措法", "所得税法施行令", "所令"。' +
@@ -29,6 +37,13 @@ export function registerGetLawTool(server: McpServer) {
         '附則を対象にする。true または "制定" で制定時附則。' +
         '改正法の附則は法令番号で指定する。例: true, "制定", "平成29年法律第45号"'
       ),
+      asof: z.string().optional().describe(
+        '版の指定日（YYYY-MM-DD）。この日に施行されている版を取得する。省略時は今日。' +
+        '未施行の改正後の条文を見るときは施行日を、過去の年分の条文を見るときはその時点の日付を指定する。例: "2027-01-01", "2024-12-31"'
+      ),
+      check_amendments: z.boolean().optional().describe(
+        '取得した版より後の改正でこの条が変わるかを確かめる（既定 true）。false で省略して速くする'
+      ),
       format: z.enum(['markdown', 'toc', 'suppl']).optional().describe(
         '出力形式。"markdown"=条文全文（デフォルト）, "toc"=目次のみ, "suppl"=附則の一覧'
       ),
@@ -36,7 +51,7 @@ export function registerGetLawTool(server: McpServer) {
     async (args) => {
       try {
         if (args.format === 'suppl') {
-          const result = await listSuppl({ lawName: args.law_name });
+          const result = await listSuppl({ lawName: args.law_name, asof: args.asof });
           const body = result.items.length === 0
             ? '（この法令に附則は収録されていません）'
             : result.items
@@ -69,6 +84,7 @@ export function registerGetLawTool(server: McpServer) {
             paragraph: args.paragraph,
             item: args.item,
             subitem: args.subitem,
+            asof: args.asof,
           });
           const label = result.amendLawNum ?? '制定時附則';
           const artDisp = args.article ? ` 第${args.article.replace(/_/g, 'の')}条` : '';
@@ -81,7 +97,7 @@ export function registerGetLawTool(server: McpServer) {
         }
 
         if (args.format === 'toc') {
-          const result = await getLawToc({ lawName: args.law_name });
+          const result = await getLawToc({ lawName: args.law_name, asof: args.asof });
           return {
             content: [{
               type: 'text' as const,
@@ -106,6 +122,8 @@ export function registerGetLawTool(server: McpServer) {
           paragraph: args.paragraph,
           item: args.item,
           subitem: args.subitem,
+          asof: args.asof,
+          checkAmendments: args.check_amendments,
         });
 
         const articleDisplay = args.article.replace(/_/g, 'の');
@@ -118,7 +136,7 @@ export function registerGetLawTool(server: McpServer) {
         return {
           content: [{
             type: 'text' as const,
-            text: `# ${result.lawTitle} 第${articleDisplay}条${paraDisplay}${itemDisplay}${subDisplay}\n${result.articleCaption ? `（${result.articleCaption}）\n` : ''}\n${result.text}\n\n---\n出典：e-Gov法令検索（デジタル庁）\nURL: ${result.egovUrl}`,
+            text: `# ${result.lawTitle} 第${articleDisplay}条${paraDisplay}${itemDisplay}${subDisplay}\n${result.articleCaption ? `（${result.articleCaption}）\n` : ''}\n${result.text}\n\n${formatVersionNote(result.version, result.amendments)}\n\n---\n出典：e-Gov法令検索（デジタル庁）\nURL: ${result.egovUrl}`,
           }],
         };
       } catch (error) {

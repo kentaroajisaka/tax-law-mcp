@@ -5,6 +5,7 @@ import {
   getLawToc,
   listSuppl,
   getSupplProvision,
+  formatVersionNote,
 } from '../src/lib/services/law-service.js';
 
 async function handler(req: VercelRequest, res: VercelResponse) {
@@ -16,6 +17,8 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   const subitem = queryString(req.query.subitem);
   const supplementary = queryString(req.query.supplementary);
   const format = queryString(req.query.format);
+  const asof = queryString(req.query.asof);
+  const checkAmendments = queryString(req.query.check_amendments)?.toLowerCase() !== 'false';
 
   if (!lawName) {
     return res.status(400).json({
@@ -25,7 +28,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 附則の一覧
   if (format === 'suppl') {
-    const result = await listSuppl({ lawName });
+    const result = await listSuppl({ lawName, asof });
     const body =
       result.items.length === 0
         ? '（この法令に附則は収録されていません）'
@@ -48,7 +51,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 目次
   if (format === 'toc') {
-    const result = await getLawToc({ lawName });
+    const result = await getLawToc({ lawName, asof });
     return res.status(200).json({
       result: `# ${result.lawTitle} — 目次\n\n${result.toc}`,
       source: 'e-Gov法令検索',
@@ -67,6 +70,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       paragraph,
       item,
       subitem,
+      asof,
     });
     const label = result.amendLawNum ?? '制定時附則';
     const artDisp = article ? ` 第${article.replace(/_/g, 'の')}条` : '';
@@ -86,7 +90,15 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const result = await getLawArticle({ lawName, article, paragraph, item, subitem });
+  const result = await getLawArticle({
+    lawName,
+    article,
+    paragraph,
+    item,
+    subitem,
+    asof,
+    checkAmendments,
+  });
 
   const articleDisplay = article.replace(/_/g, 'の');
   const effectiveParagraph = paragraph ?? result.matchedParagraph;
@@ -95,7 +107,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   const subDisplay = subitem !== undefined ? ` ${subitem}` : '';
 
   return res.status(200).json({
-    result: `# ${result.lawTitle} 第${articleDisplay}条${paraDisplay}${itemDisplay}${subDisplay}\n${result.articleCaption ? `（${result.articleCaption}）\n` : ''}\n${result.text}`,
+    result: `# ${result.lawTitle} 第${articleDisplay}条${paraDisplay}${itemDisplay}${subDisplay}\n${result.articleCaption ? `（${result.articleCaption}）\n` : ''}\n${result.text}\n\n${formatVersionNote(result.version, result.amendments)}`,
+    version: result.version,
+    amendments: result.amendments,
     source: 'e-Gov法令検索',
     url: result.egovUrl,
   });

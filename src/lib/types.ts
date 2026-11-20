@@ -30,7 +30,23 @@ export interface EgovLawData {
     law_num_num?: string;
     promulgation_date: string;
   };
+  revision_info?: EgovRevisionInfo;
   law_full_text: EgovNode;
+}
+
+/** 法令の版（改正履歴の1件）。law_data の revision_info と law_revisions の各要素 */
+export interface EgovRevisionInfo {
+  law_revision_id: string;
+  law_title?: string;
+  amendment_promulgate_date?: string | null;
+  amendment_enforcement_date?: string | null;
+  amendment_scheduled_enforcement_date?: string | null;
+  amendment_enforcement_comment?: string | null;
+  amendment_law_id?: string | null;
+  amendment_law_title?: string | null;
+  amendment_law_num?: string | null;
+  current_revision_status?: 'CurrentEnforced' | 'PreviousEnforced' | 'UnEnforced' | string | null;
+  repeal_status?: string | null;
 }
 
 export interface EgovNode {

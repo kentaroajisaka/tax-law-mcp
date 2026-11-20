@@ -50,6 +50,12 @@ export class TTLCache<T> {
 /** 法令全文キャッシュ: TTL 1時間 */
 export const lawDataCache = new TTLCache<string>(60 * 60 * 1000);
 
+/** 法令の改正履歴キャッシュ: TTL 1時間 */
+export const lawRevisionsCache = new TTLCache<string>(60 * 60 * 1000);
+
+/** 版ごとの1条分のキャッシュ（未施行改正の判定用）: TTL 1時間 */
+export const lawArticleCache = new TTLCache<string>(60 * 60 * 1000);
+
 /** 法令検索結果キャッシュ: TTL 30分 */
 export const lawSearchCache = new TTLCache<string>(30 * 60 * 1000);
 
