@@ -8,26 +8,31 @@ import type { TsutatsuRegistryEntry } from './types.js';
 export const TSUTATSU_REGISTRY: Record<string, TsutatsuRegistryEntry> = {
   '所得税基本通達': {
     tocPath: '/law/tsutatsu/kihon/shotoku/01.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/shotoku/kaisei/kaisei_a.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
   '法人税基本通達': {
     tocPath: '/law/tsutatsu/kihon/hojin/01.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/hojin/kaisei/kaisei_a.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
   '消費税法基本通達': {
     tocPath: '/law/tsutatsu/kihon/shohi/01.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/shohi/kaisei/kaisei_a.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
   '相続税法基本通達': {
     tocPath: '/law/tsutatsu/kihon/sisan/sozoku2/01.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/sisan/sozoku/kaisei/kaisei_a.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
   '財産評価基本通達': {
     tocPath: '/law/tsutatsu/kihon/sisan/hyoka_new/01.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/sisan/hyoka/kaisei/kaisei_a.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
@@ -40,24 +45,28 @@ export const TSUTATSU_REGISTRY: Record<string, TsutatsuRegistryEntry> = {
   // --- 措置法通達（Priority 1） ---
   '措置法通達（山林所得・譲渡所得関係）': {
     tocPath: '/law/tsutatsu/kobetsu/shotoku/sochiho/710826/sanrin/sanjyou/01.htm',
+    kaiseiPath: '/law/tsutatsu/kobetsu/shotoku/sochiho/kaisei/kaisei3.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
     tocFormat: 'sochiho-li',
   },
   '措置法通達（申告所得税関係）': {
     tocPath: '/law/tsutatsu/kobetsu/shotoku/sochiho/801226/sinkoku/01.htm',
+    kaiseiPath: '/law/tsutatsu/kobetsu/shotoku/sochiho/kaisei/kaisei2.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
     tocFormat: 'sochiho-p',
   },
   '措置法通達（法人税編）': {
     tocPath: '/law/tsutatsu/kobetsu/hojin/sochiho/750214/01.htm',
+    kaiseiPath: '/law/tsutatsu/kobetsu/hojin/sochiho/kaisei/kaisei3.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
     tocFormat: 'sochiho-article',
   },
   '措置法通達（相続税関係）': {
     tocPath: '/law/tsutatsu/kobetsu/sozoku/sochiho/080708/01.htm',
+    kaiseiPath: '/law/tsutatsu/kobetsu/sozoku/sochiho/kaisei/kaisei4.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
     tocFormat: 'sochiho-p',
@@ -66,16 +75,19 @@ export const TSUTATSU_REGISTRY: Record<string, TsutatsuRegistryEntry> = {
   // --- 基本通達（Priority 2） ---
   '国税通則法基本通達': {
     tocPath: '/law/tsutatsu/kihon/tsusoku/00.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/tsusoku/kaisei/kaisei.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
   '印紙税法基本通達': {
     tocPath: '/law/tsutatsu/kihon/inshi/mokuji.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/inshi/kaisei/kaisei_b.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
   '税理士法基本通達': {
     tocPath: '/law/tsutatsu/kihon/zeirishi/01.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/zeirishi/kaisei/index.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
@@ -83,23 +95,27 @@ export const TSUTATSU_REGISTRY: Record<string, TsutatsuRegistryEntry> = {
   // --- 措置法通達・基本通達（Priority 3） ---
   '措置法通達（源泉所得税関係）': {
     tocPath: '/law/tsutatsu/kobetsu/shotoku/sochiho/880331/gensen/58/01.htm',
+    kaiseiPath: '/law/tsutatsu/kobetsu/shotoku/sochiho/kaisei/kaisei1.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
     tocFormat: 'sochiho-p',
   },
   '措置法通達（株式等譲渡所得等関係）': {
     tocPath: '/law/tsutatsu/kobetsu/shotoku/sochiho/020624/sanrin/01.htm',
+    kaiseiPath: '/law/tsutatsu/kobetsu/shotoku/sochiho/kaisei/kaisei5.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
     tocFormat: 'sochiho-li',
   },
   '国税徴収法基本通達': {
     tocPath: '/law/tsutatsu/kihon/chosyu/index.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/chosyu/kaisei/kaisei.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },
   '酒税法基本通達': {
     tocPath: '/law/tsutatsu/kihon/sake/01.htm',
+    kaiseiPath: '/law/tsutatsu/kihon/sake/kaisei/kaisei_g.htm',
     encoding: 'shift_jis',
     baseUrl: 'https://www.nta.go.jp',
   },

@@ -8,10 +8,13 @@ import { fetchTsutatsuToc, fetchNtaPage, getNtaUrl } from '../tsutatsu-client.js
 import { parseTocLinks, findPageForNumber, extractTsutatsuEntry, getCandidatePages, formatTocAsText } from '../tsutatsu-parser.js';
 import { NotFoundError, UnsupportedError } from '../errors.js';
 import type { TsutatsuEntry, TsutatsuTocLink } from '../types.js';
+import { buildTsutatsuHistory, type TsutatsuHistory } from '../tsutatsu-history.js';
 
 export interface GetTsutatsuResult {
   tsutatsuName: string;
   entry: TsutatsuEntry;
+  /** 改正履歴（history=false のときは undefined） */
+  history?: TsutatsuHistory;
 }
 
 export interface ListTsutatsuResult {
@@ -32,6 +35,8 @@ export interface ListTsutatsuResult {
 export async function getTsutatsu(params: {
   tsutatsuName: string;
   number: string;
+  /** 改正履歴を付ける（既定 true） */
+  history?: boolean;
 }): Promise<GetTsutatsuResult> {
   const { name, entry } = resolveTsutatsuName(params.tsutatsuName);
 
@@ -87,7 +92,19 @@ export async function getTsutatsu(params: {
     );
   }
 
-  return { tsutatsuName: name, entry: tsutatsuEntry };
+  let history: TsutatsuHistory | undefined;
+  if (params.history !== false) {
+    try {
+      history = await buildTsutatsuHistory(tsutatsuEntry.body, entry.kaiseiPath, params.number);
+    } catch (e) {
+      history = {
+        groups: [],
+        error: `改正履歴を組み立てられませんでした（${e instanceof Error ? e.message : String(e)}）`,
+      };
+    }
+  }
+
+  return { tsutatsuName: name, entry: tsutatsuEntry, history };
 }
 
 /**
