@@ -44,6 +44,8 @@ export interface EgovNode {
 export interface TsutatsuRegistryEntry {
   /** TOC（目次）ページのパス */
   tocPath: string;
+  /** 「一部改正通達」一覧ページのパス（改正履歴の突き合わせに使う） */
+  kaiseiPath?: string;
   /** エンコーディング */
   encoding: 'shift_jis' | 'utf-8';
   /** 基本URL */
