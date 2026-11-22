@@ -8,6 +8,7 @@ import {
   extractArticle,
   extractToc,
   listSupplProvisions,
+  filterSupplProvisions,
   findSupplProvision,
   extractSupplArticle,
   type SupplProvisionInfo,
@@ -76,8 +77,11 @@ export async function getLawArticle(params: {
     const paraDesc = params.paragraph !== undefined ? `第${params.paragraph}項` : '';
     const itemDesc = params.item !== undefined ? `第${params.item}号` : '';
     const subDesc = params.subitem !== undefined ? ` ${params.subitem}` : '';
+    const supplHint = /附則/.test(params.article)
+      ? ' 附則の条は article に「附則」を含めず、supplementary で附則を指定してください（制定時附則は true、改正法の附則は "平成28年法律第15号" のような法令番号）。'
+      : ' 経過措置や特例が本則に無い場合は、改正法の附則にあることが多いです（supplementary に改正法の法令番号を指定。附則の一覧は format="suppl"、supplementary で年や番号を渡すと絞り込めます）。';
     throw new NotFoundError(
-      `${lawTitle} ${articleDesc}${paraDesc}${itemDesc}${subDesc} が見つかりませんでした。条文番号を確認してください。`
+      `${lawTitle} ${articleDesc}${paraDesc}${itemDesc}${subDesc} が見つかりませんでした。条文番号を確認してください。${supplHint}`
     );
   }
 
@@ -137,13 +141,16 @@ export interface GetSupplResult {
 }
 
 /** 附則の一覧を取得する */
-export async function listSuppl(params: { lawName: string }): Promise<{
+export async function listSuppl(params: { lawName: string; filter?: string }): Promise<{
   lawTitle: string;
   egovUrl: string;
   items: SupplProvisionInfo[];
+  total: number;
 }> {
   const { data, lawId, lawTitle } = await fetchLawData(params.lawName);
-  return { lawTitle, egovUrl: getEgovUrl(lawId), items: listSupplProvisions(data) };
+  const all = listSupplProvisions(data);
+  const items = params.filter ? filterSupplProvisions(all, params.filter) : all;
+  return { lawTitle, egovUrl: getEgovUrl(lawId), items, total: all.length };
 }
 
 /** 附則の条文（または附則ブロック全体）を取得する */
@@ -162,7 +169,7 @@ export async function getSupplProvision(params: {
   if (!found) {
     const all = listSupplProvisions(data);
     const hint = all.length
-      ? `この法令には附則が${all.length}件あります。format="suppl" で一覧を確認してください。`
+      ? `この法令には附則が${all.length}件あります。format="suppl" で一覧を確認してください（supplementary に "平成28年" などを渡すと一覧を絞り込めます）。`
       : 'この法令に附則は収録されていません。';
     throw new NotFoundError(
       `${lawTitle} の附則「${String(params.supplementary ?? '制定')}」が見つかりませんでした。${hint}`

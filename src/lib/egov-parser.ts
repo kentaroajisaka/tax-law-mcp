@@ -526,7 +526,9 @@ function kanjiDigitsToArabic(input: string): string {
 /** 法令番号の比較用トークン（"平成29年" "45号" 等）を取り出す */
 function lawNumTokens(input: string): string[] {
   const normalized = kanjiDigitsToArabic(String(input))
-    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30));
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30))
+    // 「令和元年」「平成元年」→ 1年（元を落とすと改正法番号が号だけで照合され、別の年の附則に化ける）
+    .replace(/(明治|大正|昭和|平成|令和)\s*元\s*年/g, '$11年');
   const tokens: string[] = [];
   for (const m of normalized.matchAll(/(明治|大正|昭和|平成|令和)\s*(\d+)\s*年/g)) {
     tokens.push(`${m[1]}${parseInt(m[2], 10)}年`);
@@ -585,6 +587,20 @@ function collectByTag(node: EgovNode, tag: string, out: EgovNode[]): void {
  * query 省略 / "制定" / true → 改正法番号を持たない制定時附則
  * それ以外 → 改正法番号での絞り込み（"平成29年法律第45号" のような表記でよい）
  */
+/** 附則一覧を改正法番号（の一部。例 "平成28年", "平成28年法律第15号"）で絞り込む */
+export function filterSupplProvisions(
+  infos: SupplProvisionInfo[],
+  query: string,
+): SupplProvisionInfo[] {
+  const wanted = lawNumTokens(query);
+  if (wanted.length === 0) return infos;
+  return infos.filter((i) => {
+    if (!i.amendLawNum) return false;
+    const have = lawNumTokens(i.amendLawNum);
+    return wanted.every((t) => have.includes(t));
+  });
+}
+
 export function findSupplProvision(
   lawData: EgovLawData,
   query?: string | boolean,

@@ -77,3 +77,33 @@ describe('supplementary の型ゆらぎ', () => {
     }
   }, 30000);
 });
+
+describe('附則（消費税の経過措置・元年・絞り込み）', () => {
+  it('インボイス80%経過措置（平成28年法律第15号 附則52条）を取得できる', async () => {
+    const r = await getSupplProvision({ lawName: '消費税法', supplementary: '平成28年法律第15号', article: '52' });
+    expect(r.text).toContain('百分の八十');
+  }, 20000);
+
+  it('少額特例（同 附則53条の2）を取得できる', async () => {
+    const r = await getSupplProvision({ lawName: '消費税法', supplementary: '平成28年法律第15号', article: '53の2' });
+    expect(r.text).toContain('一億円以下');
+  }, 20000);
+
+  it('「令和元年」を号だけで照合して別の年の附則に化けない', async () => {
+    await expect(
+      getSupplProvision({ lawName: '消費税法', supplementary: '令和元年法律第34号', article: '1' })
+    ).rejects.toThrow(/見つかりませんでした/);
+  }, 20000);
+
+  it('附則一覧を改正年で絞り込める', async () => {
+    const r = await listSuppl({ lawName: '消費税法', filter: '平成28年' });
+    expect(r.items.length).toBeLessThan(r.total);
+    expect(r.items.some((i) => i.articleNums.includes('53の2'))).toBe(true);
+  }, 20000);
+
+  it('article に「附則」を含めると supplementary の使い方を案内する', async () => {
+    await expect(
+      getLawArticle({ lawName: '消費税法', article: '附則106条' })
+    ).rejects.toThrow(/supplementary/);
+  }, 20000);
+});
