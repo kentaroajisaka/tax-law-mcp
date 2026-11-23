@@ -25,10 +25,15 @@ async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 附則の一覧
   if (format === 'suppl') {
-    const result = await listSuppl({ lawName });
+    const filter =
+      supplementary !== undefined &&
+      !['true', 'false', '制定', ''].includes(supplementary.trim().toLowerCase())
+        ? supplementary
+        : undefined;
+    const result = await listSuppl({ lawName, filter });
     const body =
       result.items.length === 0
-        ? '（この法令に附則は収録されていません）'
+        ? (filter ? `（「${filter}」に当たる附則はありません）` : '（この法令に附則は収録されていません）')
         : result.items
             .map((i) => {
               const label = i.amendLawNum ?? '（制定時附則）';
@@ -40,7 +45,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
             })
             .join('\n');
     return res.status(200).json({
-      result: `# ${result.lawTitle} — 附則一覧（${result.items.length}件）\n\n${body}`,
+      result: `# ${result.lawTitle} — 附則一覧（${filter ? `「${filter}」で絞り込み ${result.items.length}件／全${result.total}件` : `${result.items.length}件`}）\n\n${body}`,
       source: 'e-Gov法令検索',
       url: result.egovUrl,
     });

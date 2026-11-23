@@ -72,7 +72,8 @@ paths:
             type: string
           description: |
             附則を対象にする。"true" または "制定" で制定時附則。
-            改正法の附則は法令番号で指定する。例: "平成29年法律第45号"
+            改正法の附則は法令番号で指定する。例: "平成29年法律第45号", "令和元年法律第34号"
+            format=suppl と併せて "平成28年" などを渡すと、附則一覧をその改正法だけに絞り込む。
         - name: format
           in: query
           required: false
