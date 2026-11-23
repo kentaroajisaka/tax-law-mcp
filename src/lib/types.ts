@@ -10,13 +10,34 @@ export interface EgovLawSearchResult {
   revision_info?: {
     law_title: string;
     law_title_kana?: string;
-    abbrev?: string;
+    abbrev?: string | null;
+    repeal_status?: string | null;
   };
   current_revision_info?: {
     law_title: string;
     law_title_kana?: string;
-    abbrev?: string;
+    abbrev?: string | null;
+    repeal_status?: string | null;
   };
+}
+
+/** e-Gov API v2 /keyword（本文全文検索）の1件 */
+export interface EgovKeywordSearchItem {
+  law_info: {
+    law_id: string;
+    law_type: string;
+    law_num: string;
+    promulgation_date: string;
+  };
+  revision_info?: {
+    law_title: string;
+    abbrev?: string | null;
+    repeal_status?: string | null;
+  };
+  sentences?: Array<{
+    position: string;
+    text: string;
+  }>;
 }
 
 export interface EgovLawData {
