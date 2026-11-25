@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerGetLawTool } from './tools/get-law.js';
 import { registerSearchLawTool } from './tools/search-law.js';
@@ -7,11 +8,13 @@ import { registerListSaiketsuTool } from './tools/list-saiketsu.js';
 import { registerSearchSaiketsuTool } from './tools/search-saiketsu.js';
 import { registerGetSaiketsuTool } from './tools/get-saiketsu.js';
 
+const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
+
 export function createServer(): McpServer {
   const server = new McpServer(
     {
       name: 'tax-law-mcp',
-      version: '0.5.3',
+      version,
     },
     {
       instructions: `日本の税法（法令・通達・裁決事例）の原文を取得するMCPサーバーです。
