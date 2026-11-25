@@ -84,6 +84,16 @@ describe('附則（消費税の経過措置・元年・絞り込み）', () => {
     expect(r.text).toContain('百分の八十');
   }, 20000);
 
+  it('漢数字で指定しても e-Gov の第15号の附則52条を取得できる', async () => {
+    const supplementary = '平成二十八年法律第十五号';
+    const r = await getSupplProvision({ lawName: '消費税法', supplementary, article: '52' });
+    expect(r.amendLawNum).toBe('平成二八年三月三一日法律第一五号');
+    expect(r.text).toContain('百分の八十');
+
+    const list = await listSuppl({ lawName: '消費税法', filter: supplementary });
+    expect(list.items.map((i) => i.amendLawNum)).toEqual([r.amendLawNum]);
+  }, 20000);
+
   it('少額特例（同 附則53条の2）を取得できる', async () => {
     const r = await getSupplProvision({ lawName: '消費税法', supplementary: '平成28年法律第15号', article: '53の2' });
     expect(r.text).toContain('一億円以下');
