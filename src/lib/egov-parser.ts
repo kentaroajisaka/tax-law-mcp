@@ -517,24 +517,43 @@ function collectToc(node: EgovNode, lines: string[], depth: number): void {
 /** 法令番号中の漢数字を算用数字に直す（e-Govは "平成二九年六月二日法律第四五号" 形式） */
 function kanjiDigitsToArabic(input: string): string {
   const map: Record<string, string> = {
-    '〇': '0', '一': '1', '二': '2', '三': '3', '四': '4',
+    '〇': '0', '零': '0', '一': '1', '二': '2', '三': '3', '四': '4',
     '五': '5', '六': '6', '七': '7', '八': '8', '九': '9',
   };
-  return input.replace(/[〇一二三四五六七八九]/g, (ch) => map[ch] ?? ch);
+  return input.replace(/[〇零一二三四五六七八九]/g, (ch) => map[ch] ?? ch);
+}
+
+/** 位取りのある漢数字と、一五・１５などの数字列を同じ値にする */
+function normalizeLawNumber(input: string): number | null {
+  const digits = kanjiDigitsToArabic(input);
+  if (/^\d+$/.test(digits)) return Number(digits);
+  if (!/^(?:[1-9]?千)?(?:[1-9]?百)?(?:[1-9]?十)?[1-9]?$/.test(digits)) return null;
+
+  const units: Record<string, number> = { 千: 1000, 百: 100, 十: 10 };
+  let number = 0;
+  let remainder = 0;
+  for (const ch of digits) {
+    if (ch in units) {
+      number += (remainder || 1) * units[ch];
+      remainder = 0;
+    } else {
+      remainder = Number(ch);
+    }
+  }
+  return number + remainder;
 }
 
 /** 法令番号の比較用トークン（"平成29年" "45号" 等）を取り出す */
-function lawNumTokens(input: string): string[] {
-  const normalized = kanjiDigitsToArabic(String(input))
+function lawNumTokens(input: string): string[] | null {
+  const normalized = String(input)
     .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30))
-    // 「令和元年」「平成元年」→ 1年（元を落とすと改正法番号が号だけで照合され、別の年の附則に化ける）
     .replace(/(明治|大正|昭和|平成|令和)\s*元\s*年/g, '$11年');
   const tokens: string[] = [];
-  for (const m of normalized.matchAll(/(明治|大正|昭和|平成|令和)\s*(\d+)\s*年/g)) {
-    tokens.push(`${m[1]}${parseInt(m[2], 10)}年`);
-  }
-  for (const m of normalized.matchAll(/第?\s*(\d+)\s*号/g)) {
-    tokens.push(`${parseInt(m[1], 10)}号`);
+  // 十五号は数字列全体で照合する。未対応の位（万・億）を含む数字列も丸ごと捕捉して拒否する。
+  for (const m of normalized.matchAll(/(明治|大正|昭和|平成|令和)\s*([0-9〇零一二三四五六七八九十百千万億]+)\s*年|([0-9〇零一二三四五六七八九十百千万億]+)\s*号/g)) {
+    const number = normalizeLawNumber(m[2] ?? m[3]);
+    if (number === null) return null;
+    tokens.push(m[1] ? `${m[1]}${number}年` : `${number}号`);
   }
   return tokens;
 }
@@ -593,11 +612,16 @@ export function filterSupplProvisions(
   query: string,
 ): SupplProvisionInfo[] {
   const wanted = lawNumTokens(query);
+  if (wanted === null) return [];
   if (wanted.length === 0) return infos;
+  return matchSupplProvisions(infos, wanted);
+}
+
+function matchSupplProvisions(infos: SupplProvisionInfo[], wanted: string[]): SupplProvisionInfo[] {
   return infos.filter((i) => {
     if (!i.amendLawNum) return false;
     const have = lawNumTokens(i.amendLawNum);
-    return wanted.every((t) => have.includes(t));
+    return wanted.every((t) => have?.includes(t));
   });
 }
 
@@ -628,16 +652,11 @@ export function findSupplProvision(
   }
 
   const wanted = lawNumTokens(q);
-  const matched: number[] = [];
-  for (let i = 0; i < infos.length; i++) {
-    const amend = infos[i].amendLawNum;
-    if (!amend) continue;
-    const have = lawNumTokens(amend);
-    if (wanted.length > 0 && wanted.every((t) => have.includes(t))) matched.push(i);
-  }
+  if (!wanted?.length) return null;
+  const matched = matchSupplProvisions(infos, wanted);
   if (matched.length === 0) return null;
-  if (matched.length > 1) return { ambiguous: matched.map((i) => infos[i]) };
-  return { node: nodes[matched[0]], info: infos[matched[0]] };
+  if (matched.length > 1) return { ambiguous: matched };
+  return { node: nodes[matched[0].index], info: matched[0] };
 }
 
 /** 附則ブロック全体をテキスト化する */
